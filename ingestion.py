@@ -1,7 +1,16 @@
 from langchain.documnet_loader import PyPDFDirectoryLoader
 from langchain.text_splitters import RecursiveCharacterTextSplitter
-from .main import index
 from .embedding import get_embeddings
+
+from dotenv import load_dotenv
+from pinecone import Pinecone
+import os
+
+load_dotenv()
+pinecone_api_key = os.getenv("PINECONE_API_KEY")
+pinecone_index_name = os.getenv("PINECONE_INDEX_NAME")
+pc = Pinecone(api_key=pinecone_api_key)
+index = pc.index(pinecone_index_name)
 
 #class to define the structure of document chunks
 class DocumentChunkWithMetadata:

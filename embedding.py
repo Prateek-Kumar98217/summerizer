@@ -1,5 +1,8 @@
 import torch
-from .main import tokenizer, model
+from transformers import DistilBertTokenizer, DistilBertModel
+
+model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 
 def get_embeddings(text):
     imputs = tokenizer(text, return_tensors="pt")
