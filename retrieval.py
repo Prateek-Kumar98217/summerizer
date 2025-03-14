@@ -1,5 +1,5 @@
-from .ingestion import DocumentChunkWithMetadata
-from .embedding import get_embeddings
+from ingestion import DocumentChunkWithMetadata
+from embedding import get_embeddings
 from dotenv import load_dotenv
 from pinecone import Pinecone
 import os
@@ -8,9 +8,9 @@ load_dotenv()
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
 pinecone_index_name = os.getenv("PINECONE_INDEX_NAME")
 pc = Pinecone(api_key=pinecone_api_key)
-index = pc.index(pinecone_index_name)
+index = pc.Index(pinecone_index_name)
 
-def retieve_and_reconstruct(query, index, k = 10):
+def retieve_and_reconstruct(query, k = 20):
     query_embeddings = get_embeddings(query).cpu().numpy().tolist()
     results = index.query(queries=query_embeddings, top_k=k)
     chunks_with_metadata = []
