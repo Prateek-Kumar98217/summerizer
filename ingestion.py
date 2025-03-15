@@ -1,7 +1,6 @@
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from embedding import get_embeddings
-
+from math import ceil
 from dotenv import load_dotenv
 from pinecone import Pinecone
 import os
@@ -16,14 +15,14 @@ index = pc.Index(pinecone_index_name)
 class DocumentChunkWithMetadata:
     #constructor
     def __init__(self, text, document_id, chunk_id, start, end):
-        self.text = text
+        self.text = text.encode('utf-8', 'ignore').decode('utf-8')
         self.document_id = document_id
         self.chunk_id = chunk_id
         self.start = start
         self.end = end
 
 #function to split the document into chunks
-def split_document_with_metadata(documents, document_id, chunk_size = 512, chunk_overlap = 50):
+def split_document_with_metadata(documents, document_id, chunk_size = 500, chunk_overlap = 50):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size = chunk_size, chunk_overlap = chunk_overlap)
     chunks = text_splitter.split_documents(documents)
     print(f"Document split into {len(chunks)} chunks")
@@ -53,21 +52,37 @@ def save_processed_document_record(document_id):
         file.write(f"{document_id}\n")
 
 def store_embeddings(chunks_with_metadata):
-    to_index = []
-    for chunk in chunks_with_metadata:
-        embeddings = get_embeddings(chunk.text).cpu().numpy().tolist()
-        to_index.append({
-            'id': f"{chunk.document_id}_{chunk.chunk_id}",
-            'values': embeddings,
-            'metadata': {
-                'document_id': chunk.document_id,
-                'chunk_id': chunk.chunk_id,
-                'start': chunk.start,
-                'end': chunk.end,
-                'text': chunk.text
+
+    i = 0
+    while i < len(chunks_with_metadata):
+        data = []
+        for chunk in chunks_with_metadata[i:i+96]:
+            data.append({
+                'id': f"{chunk.document_id}_{chunk.chunk_id}",
+                'metadata': {
+                    'document_id': chunk.document_id,
+                    'chunk_id': chunk.chunk_id,
+                    'start': chunk.start,
+                    'end': chunk.end,
+                    'text': chunk.text
+                }
+            })
+        embeddings = pc.inference.embed(
+            model = "llama-text-embed-v2",
+            inputs = [chunk.text for chunk in chunks_with_metadata[i:i+96]],
+            parameters = {
+                "input_type": "passage"
             }
-        })
-    index.upsert(vectors=to_index)
+        )
+        to_index = []
+        for d, e in zip(data, embeddings):
+            to_index.append({
+                'id': d['id'],
+                'values': e['values'],
+                'metadata': d['metadata']
+            })
+        index.upsert(vectors=to_index)
+        i = i + 96
 
 def process_document(document_path, document_id):
     processed_document_record = load_processed_document_record()
