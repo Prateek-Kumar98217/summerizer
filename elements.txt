@@ -1,2 +1,0 @@
-model = distillBERT
-db = pinecone(try local)
